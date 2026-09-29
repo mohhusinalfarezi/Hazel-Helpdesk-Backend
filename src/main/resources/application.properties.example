@@ -1,0 +1,12 @@
+spring.application.name=demo
+
+# Konfigurasi Supabase
+spring.datasource.url=jdbc:postgresql://YOUR_SUPABASE_URL:5432/postgres
+spring.datasource.username=YOUR_DB_USERNAME
+spring.datasource.password=YOUR_DB_PASSWORD
+spring.jpa.hibernate.ddl-auto=none
+
+# API Keys
+gemini.api.key=MASUKKAN_API_KEY_GEMINI_DISINI
+whatsapp.api.url=https://api.fonnte.com/send
+whatsapp.api.token=MASUKKAN_TOKEN_FONNTE_DISINI

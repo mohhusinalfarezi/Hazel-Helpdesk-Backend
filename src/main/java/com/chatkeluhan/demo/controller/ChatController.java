@@ -13,16 +13,19 @@ import java.util.Map;
 public class ChatController {
 
     private final GeminiService geminiService;
+    private final com.chatkeluhan.demo.repository.TicketRepository ticketRepository;
 
     // Dependency Injection
-    public ChatController(GeminiService geminiService) {
+    public ChatController(GeminiService geminiService, com.chatkeluhan.demo.repository.TicketRepository ticketRepository) {
         this.geminiService = geminiService;
+        this.ticketRepository = ticketRepository;
     }
 
     @PostMapping
     public ResponseEntity<Map<String, String>> chatWithHazel(@RequestBody Map<String, String> request) {
         // 1. Menangkap pesan dari Flutter
         String userMessage = request.get("message");
+        String ticketId = request.get("ticketId");
 
         // Validasi input kosong
         if (userMessage == null || userMessage.trim().isEmpty()) {
@@ -30,8 +33,13 @@ public class ChatController {
         }
 
         try {
-            // 2. Menyerahkan pesan ke Hazel (GeminiService) yang sudah kita buat
-            String aiResponse = geminiService.getAiResponse(userMessage);
+            com.chatkeluhan.demo.entity.Ticket ticket = null;
+            if (ticketId != null && !ticketId.trim().isEmpty()) {
+                ticket = ticketRepository.findById(ticketId).orElse(null);
+            }
+
+            // 2. Menyerahkan pesan ke Hazel (GeminiService) beserta konteks tiket jika ada
+            String aiResponse = geminiService.getAiResponse(userMessage, ticket);
 
             // 3. Mengemas balasan Hazel menjadi format JSON untuk Flutter (key "reply"
             // harus cocok dengan Flutter)

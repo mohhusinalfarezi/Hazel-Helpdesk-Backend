@@ -22,14 +22,20 @@ public class GeminiService {
     private final ObjectMapper objectMapper;
     private final List<Map<String, Object>> chatHistory = new ArrayList<>();
     private final TicketService ticketService;
+    private final com.chatkeluhan.demo.repository.TicketMessageRepository ticketMessageRepository;
 
-    public GeminiService(TicketService ticketService) {
+    public GeminiService(TicketService ticketService, com.chatkeluhan.demo.repository.TicketMessageRepository ticketMessageRepository) {
         this.restTemplate = new RestTemplate();
         this.objectMapper = new ObjectMapper();
         this.ticketService = ticketService;
+        this.ticketMessageRepository = ticketMessageRepository;
     }
 
     public String getAiResponse(String userMessage) {
+        return getAiResponse(userMessage, null);
+    }
+
+    public String getAiResponse(String userMessage, com.chatkeluhan.demo.entity.Ticket ticket) {
         chatHistory.add(Map.of("role", "user", "parts", new Object[]{ Map.of("text", userMessage) }));
 
         int maxRetries = 3;
@@ -40,19 +46,27 @@ public class GeminiService {
                 String rawUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=" + apiKey;
                 URI uri = new URI(rawUrl);
 
-                // PROMPT DIPERBARUI: Menyuruh AI memiliki DUA kemampuan (Buat Tiket & Cek Tiket)
+                String baseInstruction = "Kamu adalah Asisten AI Helpdesk dari sebuah perusahaan BUMN bernama Hazel. " +
+                        "Gaya bahasamu ramah, hangat, empati, dan tidak kaku. " +
+                        "Tugasmu ada DUA:\n" +
+                        "1. MEMBUAT TIKET: Jika pelanggan melapor masalah, tanyakan lokasi spesifik dan nomor HP. " +
+                        "JIKA lengkap, berikan penutup ramah, beritahu Nomor Tiket akan ditampilkan sistem di layar ini dan salinannya dikirim via WhatsApp. " +
+                        "LALU WAJIB tambahkan kode [TICKET_READY: {\"no_hp\":\"...\", \"lokasi\":\"...\", \"masalah\":\"...\"}] di baris paling bawah.\n\n" +
+                        "2. CEK STATUS: Jika pelanggan ingin mengecek status atau mem-follow-up laporan, tanyakan Nomor Tiketnya (misal: TKT-123). " +
+                        "Jika pelanggan sudah menyebutkan nomor tiket, berikan respons bahwa sistem sedang mengeceknya, " +
+                        "LALU WAJIB tambahkan kode [TICKET_CHECK: {\"ticket_id\":\"...\"}] di baris paling bawah.";
+
+                if (ticket != null) {
+                    baseInstruction += "\n\nINFORMASI TIKET SAAT INI (Konteks Pengguna):\n" +
+                            "- ID Tiket: " + ticket.getTicketId() + "\n" +
+                            "- Deskripsi Keluhan: " + ticket.getDescription() + "\n" +
+                            "- Status Saat Ini: " + ticket.getCurrentStatus() + "\n" +
+                            "- Kategori: " + (ticket.getCategory() != null ? ticket.getCategory().getCategoryName() : "Umum") + "\n" +
+                            "Gunakan informasi di atas untuk merespons pertanyaan pengguna yang berkaitan dengan tiket ini secara spesifik.";
+                }
+
                 Map<String, Object> systemInstruction = Map.of(
-                    "parts", new Object[]{
-                        Map.of("text", "Kamu adalah Asisten AI Helpdesk dari sebuah perusahaan BUMN bernama Hazel. " +
-                                "Gaya bahasamu ramah, hangat, empati, dan tidak kaku. " +
-                                "Tugasmu ada DUA:\n" +
-                                "1. MEMBUAT TIKET: Jika pelanggan melapor masalah, tanyakan lokasi spesifik dan nomor HP. " +
-                                "JIKA lengkap, berikan penutup ramah, beritahu Nomor Tiket akan ditampilkan sistem di layar ini dan salinannya dikirim via WhatsApp. " +
-                                "LALU WAJIB tambahkan kode [TICKET_READY: {\"no_hp\":\"...\", \"lokasi\":\"...\", \"masalah\":\"...\"}] di baris paling bawah.\n\n" +
-                                "2. CEK STATUS: Jika pelanggan ingin mengecek status atau mem-follow-up laporan, tanyakan Nomor Tiketnya (misal: TKT-123). " +
-                                "Jika pelanggan sudah menyebutkan nomor tiket, berikan respons bahwa sistem sedang mengeceknya, " +
-                                "LALU WAJIB tambahkan kode [TICKET_CHECK: {\"ticket_id\":\"...\"}] di baris paling bawah.")
-                    }
+                    "parts", new Object[]{ Map.of("text", baseInstruction) }
                 );
 
                 Map<String, Object> requestBody = Map.of(
@@ -135,6 +149,22 @@ public class GeminiService {
                 // Simpan hanya teks AI yang sudah digabung (tanpa JSON rahasia) ke dalam memori
                 chatHistory.add(Map.of("role", "model", "parts", new Object[]{ Map.of("text", displayReply) }));
                 
+                if (ticket != null && ticketMessageRepository != null) {
+                    com.chatkeluhan.demo.entity.TicketMessage userMsgEntity = new com.chatkeluhan.demo.entity.TicketMessage();
+                    userMsgEntity.setTicket(ticket);
+                    userMsgEntity.setSender("USER");
+                    userMsgEntity.setMessageText(userMessage);
+                    userMsgEntity.setSentAt(java.time.LocalDateTime.now());
+                    ticketMessageRepository.save(userMsgEntity);
+
+                    com.chatkeluhan.demo.entity.TicketMessage aiMsgEntity = new com.chatkeluhan.demo.entity.TicketMessage();
+                    aiMsgEntity.setTicket(ticket);
+                    aiMsgEntity.setSender("AI");
+                    aiMsgEntity.setMessageText(displayReply);
+                    aiMsgEntity.setSentAt(java.time.LocalDateTime.now());
+                    ticketMessageRepository.save(aiMsgEntity);
+                }
+
                 return displayReply;
 
             } catch (org.springframework.web.client.HttpStatusCodeException e) {
