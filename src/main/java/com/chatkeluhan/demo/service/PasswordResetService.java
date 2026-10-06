@@ -1,9 +1,8 @@
 package com.chatkeluhan.demo.service;
 
-import com.chatkeluhan.demo.dto.PasswordResetRequest;
+import com.chatkeluhan.demo.entity.UserEntity;
+import com.chatkeluhan.demo.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
 import java.util.Random;
@@ -12,43 +11,39 @@ import java.util.Random;
 public class PasswordResetService {
 
     @Autowired
-    private JavaMailSender mailSender;
+    private UserRepository userRepository;
 
-    public String processReset(PasswordResetRequest request) {
-        if (request.getMethod() == null) {
-            return "Invalid reset method.";
-        }
+    public String generateAndSendOtp(String email) {
+        UserEntity user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Email not found"));
 
-        switch (request.getMethod().toUpperCase()) {
-            case "EMAIL":
-                return handleEmailReset(request.getIdentifier());
-            case "2FA":
-                return "2FA token verified successfully.";
-            case "GOOGLE":
-                return "Google Auth verified successfully.";
-            default:
-                return "Unsupported reset method.";
-        }
+        String otp = String.valueOf(100000 + new Random().nextInt(900000));
+        user.setOtpCode(otp);
+        user.setOtpExpiry(java.time.LocalDateTime.now().plusMinutes(10));
+        userRepository.save(user);
+
+        System.out.println("SIMULATION: Email sent to " + email + " with OTP: " + otp);
+
+        return "OTP sent successfully";
     }
 
-    private String handleEmailReset(String email) {
-        try {
-            String code = generateRandomCode();
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setTo(email);
-            message.setSubject("Your Password Reset Code");
-            message.setText("Your password reset code is: " + code);
-            
-            mailSender.send(message);
-            return "Reset code sent successfully to " + email;
-        } catch (Exception e) {
-            return "Failed to send reset code: " + e.getMessage();
-        }
+    public boolean verifyOtp(String email, String otp) {
+        UserEntity user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Email not found"));
+
+        return user.getOtpCode() != null
+                && user.getOtpCode().equals(otp)
+                && user.getOtpExpiry() != null
+                && java.time.LocalDateTime.now().isBefore(user.getOtpExpiry());
     }
 
-    private String generateRandomCode() {
-        Random random = new Random();
-        int code = 100000 + random.nextInt(900000); // 6-digit code
-        return String.valueOf(code);
+    public void updatePassword(String email, String newPassword) {
+        UserEntity user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Email not found"));
+
+        user.setPassword(newPassword);
+        user.setOtpCode(null);
+        user.setOtpExpiry(null);
+        userRepository.save(user);
     }
 }

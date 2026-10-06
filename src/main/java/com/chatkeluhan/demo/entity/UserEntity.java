@@ -48,4 +48,24 @@ public class UserEntity {
     public void setPassword(String password) {
         this.password = password;
     }
+
+    private String otpCode;
+
+    public String getOtpCode() {
+        return otpCode;
+    }
+
+    public void setOtpCode(String otpCode) {
+        this.otpCode = otpCode;
+    }
+
+    private java.time.LocalDateTime otpExpiry;
+
+    public java.time.LocalDateTime getOtpExpiry() {
+        return otpExpiry;
+    }
+
+    public void setOtpExpiry(java.time.LocalDateTime otpExpiry) {
+        this.otpExpiry = otpExpiry;
+    }
 }

@@ -2,7 +2,9 @@ package com.chatkeluhan.demo.controller;
 
 import com.chatkeluhan.demo.dto.LoginRequest;
 import com.chatkeluhan.demo.dto.RegisterRequest;
-import com.chatkeluhan.demo.dto.PasswordResetRequest;
+import com.chatkeluhan.demo.dto.ForgotPasswordRequest;
+import com.chatkeluhan.demo.dto.VerifyOtpRequest;
+import com.chatkeluhan.demo.dto.NewPasswordRequest;
 import com.chatkeluhan.demo.entity.UserEntity;
 import com.chatkeluhan.demo.repository.UserRepository;
 import com.chatkeluhan.demo.service.AuthService;
@@ -64,12 +66,38 @@ public class AuthController {
         }
     }
 
-    @PostMapping("/reset-password")
-    public ResponseEntity<Map<String, String>> resetPassword(@RequestBody PasswordResetRequest request) {
-        String message = passwordResetService.processReset(request);
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Map<String, String>> forgotPassword(@RequestBody ForgotPasswordRequest request) {
+        try {
+            passwordResetService.generateAndSendOtp(request.getEmail());
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "OTP sent");
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            Map<String, String> response = new HashMap<>();
+            response.put("message", e.getMessage());
+            return ResponseEntity.status(404).body(response);
+        }
+    }
+
+    @PostMapping("/verify-otp")
+    public ResponseEntity<Map<String, String>> verifyOtp(@RequestBody VerifyOtpRequest request) {
+        boolean isValid = passwordResetService.verifyOtp(request.getEmail(), request.getOtp());
         Map<String, String> response = new HashMap<>();
-        response.put("status", "success");
-        response.put("message", message);
+        if (isValid) {
+            response.put("message", "OTP verified");
+            return ResponseEntity.ok(response);
+        } else {
+            response.put("message", "Invalid or expired OTP");
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<Map<String, String>> resetPassword(@RequestBody NewPasswordRequest request) {
+        passwordResetService.updatePassword(request.getEmail(), request.getNewPassword());
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Password updated successfully");
         return ResponseEntity.ok(response);
     }
 }

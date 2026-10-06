@@ -193,6 +193,10 @@ public class TicketService {
         return mapToResponse(updatedTicket);
     }
 
+    public List<Ticket> getAllTickets() {
+        return ticketRepository.findAll();
+    }
+
     private TicketResponse mapToResponse(Ticket ticket) {
         TicketResponse response = new TicketResponse();
         response.setTicketId(ticket.getTicketId());

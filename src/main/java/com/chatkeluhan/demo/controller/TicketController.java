@@ -112,4 +112,10 @@ public class TicketController {
             return ResponseEntity.badRequest().build();
         }
     }
+
+    // GET: Mengambil semua tiket untuk dashboard Flutter
+    @GetMapping("/all")
+    public ResponseEntity<List<Ticket>> getAllTickets() {
+        return ResponseEntity.ok(ticketService.getAllTickets());
+    }
 }

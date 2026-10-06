@@ -19,12 +19,30 @@ public class Asset {
     @Column(name = "location_coordinate", length = 255)
     private String locationCoordinate;
 
-    public Asset() {}
+    public Asset() {
+    }
 
-    public String getAssetId() { return assetId; }
-    public void setAssetId(String assetId) { this.assetId = assetId; }
-    public String getAssetName() { return assetName; }
-    public void setAssetName(String assetName) { this.assetName = assetName; }
-    public String getLocationCoordinate() { return locationCoordinate; }
-    public void setLocationCoordinate(String locationCoordinate) { this.locationCoordinate = locationCoordinate; }
+    public String getAssetId() {
+        return assetId;
+    }
+
+    public void setAssetId(String assetId) {
+        this.assetId = assetId;
+    }
+
+    public String getAssetName() {
+        return assetName;
+    }
+
+    public void setAssetName(String assetName) {
+        this.assetName = assetName;
+    }
+
+    public String getLocationCoordinate() {
+        return locationCoordinate;
+    }
+
+    public void setLocationCoordinate(String locationCoordinate) {
+        this.locationCoordinate = locationCoordinate;
+    }
 }

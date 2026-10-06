@@ -43,7 +43,7 @@ public class GeminiService {
 
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                String rawUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=" + apiKey;
+                String rawUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=" + apiKey;
                 URI uri = new URI(rawUrl);
 
                 String baseInstruction = "Kamu adalah Asisten AI Helpdesk dari sebuah perusahaan BUMN bernama Hazel. " +
