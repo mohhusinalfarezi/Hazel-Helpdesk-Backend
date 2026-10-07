@@ -7,6 +7,7 @@ import com.chatkeluhan.demo.dto.VerifyOtpRequest;
 import com.chatkeluhan.demo.dto.NewPasswordRequest;
 import com.chatkeluhan.demo.entity.UserEntity;
 import com.chatkeluhan.demo.repository.UserRepository;
+import com.chatkeluhan.demo.security.JwtUtils;
 import com.chatkeluhan.demo.service.AuthService;
 import com.chatkeluhan.demo.service.PasswordResetService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +28,9 @@ public class AuthController {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private JwtUtils jwtUtils;
 
     @PostMapping("/register")
     public ResponseEntity<Map<String, String>> register(@RequestBody RegisterRequest request) {
@@ -50,14 +54,14 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<Map<String, String>> login(@RequestBody LoginRequest request) {
         java.util.Optional<UserEntity> userOpt = userRepository.findByEmail(request.getEmail());
-        
+
         if (userOpt.isPresent() && userOpt.get().getPassword().equals(request.getPassword())) {
             Map<String, String> response = new HashMap<>();
-            response.put("token", "dummy-jwt-token-12345");
+            String realToken = jwtUtils.generateToken(userOpt.get().getEmail());
+            response.put("token", realToken);
             response.put("message", "Login successful");
-            // Menambahkan nama pengguna ke dalam response
             response.put("name", userOpt.get().getName());
-            
+
             return ResponseEntity.ok(response);
         } else {
             Map<String, String> response = new HashMap<>();
