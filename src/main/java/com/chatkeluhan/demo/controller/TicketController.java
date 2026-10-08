@@ -13,7 +13,7 @@ import com.chatkeluhan.demo.dto.ticket.TicketRequest;
 import com.chatkeluhan.demo.dto.ticket.TicketResponse;
 import com.chatkeluhan.demo.dto.ticket.TicketStatusUpdateRequest;
 import org.springframework.security.core.Authentication;
-
+import org.springframework.security.core.context.SecurityContextHolder;
 @RestController
 @RequestMapping("/api/tickets")
 public class TicketController {
@@ -88,8 +88,9 @@ public class TicketController {
     }
 
     // GET: Mengambil semua tiket milik user yang sedang login (JWT Authenticated)
-    @GetMapping
-    public ResponseEntity<List<TicketResponse>> getMyTicketsApi(Authentication authentication) {
+    @GetMapping("/my-tickets")
+    public ResponseEntity<List<TicketResponse>> getMyTicketsApi() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String userEmail = authentication.getName();
         try {
             List<TicketResponse> responses = ticketService.getMyTicketsApi(userEmail);

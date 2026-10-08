@@ -11,6 +11,9 @@ public interface TicketRepository extends JpaRepository<Ticket, String> {
     // Bot bisa menggunakan ini untuk melacak semua riwayat tiket pelanggan
     List<Ticket> findByCustomer_CustomerId(String customerId);
 
+    // Mencari tiket berdasarkan email customer
+    List<Ticket> findByCustomer_Email(String email);
+
     // Mencari tiket berdasarkan status
     List<Ticket> findByCurrentStatus(String currentStatus);
 }

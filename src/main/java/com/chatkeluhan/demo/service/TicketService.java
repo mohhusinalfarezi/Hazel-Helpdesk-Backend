@@ -41,14 +41,11 @@ public class TicketService {
 
     @Transactional
     public String createTicketFromExtractedData(String noHp, String lokasi, String masalah) {
-        Customer customer = customerRepository.findByContactNumber(noHp);
-        if (customer == null) {
-            customer = new Customer();
-            customer.setCustomerId("CUST-" + System.currentTimeMillis());
-            customer.setFullName("Pelanggan Baru");
-            customer.setContactNumber(noHp);
-            customer = customerRepository.save(customer);
-        }
+        // Mengambil email dari SecurityContext JWT
+        String userEmail = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        
+        Customer customer = customerRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("Customer tidak ditemukan dengan email: " + userEmail));
 
         // Dummy Asset based on location
         Asset asset = new Asset();
@@ -65,8 +62,25 @@ public class TicketService {
         category = categoryRepository.save(category);
 
         // Membuat tiket
-        Ticket savedTicket = createTicketFromBot(noHp, asset, category, masalah);
+        Ticket ticket = new Ticket();
+        ticket.setTicketId("TKT-" + System.currentTimeMillis());
+        ticket.setCustomer(customer);
+        ticket.setAsset(asset);
+        ticket.setCategory(category);
+        ticket.setDescription(masalah);
+        ticket.setCurrentStatus("OPEN");
+        ticket.setReportDate(LocalDateTime.now());
+
+        Ticket savedTicket = ticketRepository.save(ticket);
         String generatedTicketId = savedTicket.getTicketId();
+        
+        // Rekam jejak audit secara otomatis
+        TicketHistory history = new TicketHistory();
+        history.setTicket(savedTicket);
+        history.setOldStatus(null);
+        history.setNewStatus("OPEN");
+        history.setChangeTimestamp(LocalDateTime.now());
+        historyRepository.save(history);
 
         // 3. TAMBAHAN BARU: Panggil fungsi kirim WhatsApp setelah tiket sukses disimpan
         // di MySQL
