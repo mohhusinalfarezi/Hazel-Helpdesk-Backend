@@ -146,11 +146,38 @@ public class TicketService {
         Customer customer = customerRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Customer tidak ditemukan"));
 
-        Asset asset = assetRepository.findById(request.getAssetId())
-                .orElseThrow(() -> new RuntimeException("Asset tidak ditemukan"));
+        Asset asset = null;
+        if (request.getAssetId() != null && !request.getAssetId().isBlank()) {
+            asset = assetRepository.findById(request.getAssetId()).orElse(null);
+        }
+        if (asset == null) {
+            asset = assetRepository.findAll().stream().findFirst().orElseGet(() -> {
+                Asset newAsset = new Asset();
+                newAsset.setAssetId("AST-" + System.currentTimeMillis());
+                newAsset.setAssetName("General Asset");
+                newAsset.setLocationCoordinate("Head Office");
+                return assetRepository.save(newAsset);
+            });
+        }
 
-        ProblemCategory category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new RuntimeException("Kategori masalah tidak ditemukan"));
+        ProblemCategory category = null;
+        if (request.getCategoryId() != null && !request.getCategoryId().isBlank()) {
+            category = categoryRepository.findById(request.getCategoryId())
+                    .orElseGet(() -> categoryRepository.findAll().stream()
+                            .filter(c -> c.getCategoryName() != null && c.getCategoryName().equalsIgnoreCase(request.getCategoryId()))
+                            .findFirst().orElse(null));
+        }
+        if (category == null) {
+            final String catName = (request.getCategoryId() != null && !request.getCategoryId().isBlank())
+                    ? request.getCategoryId() : "General IT";
+            category = categoryRepository.findAll().stream().findFirst().orElseGet(() -> {
+                ProblemCategory newCat = new ProblemCategory();
+                newCat.setCategoryId("CAT-" + System.currentTimeMillis());
+                newCat.setCategoryName(catName);
+                newCat.setEstimatedResolutionHours(24);
+                return categoryRepository.save(newCat);
+            });
+        }
 
         Ticket ticket = new Ticket();
         String generatedId = "TKT-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();

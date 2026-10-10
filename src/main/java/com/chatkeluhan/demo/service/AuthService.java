@@ -4,6 +4,7 @@ import com.chatkeluhan.demo.dto.auth.AuthResponse;
 import com.chatkeluhan.demo.dto.auth.LoginRequest;
 import com.chatkeluhan.demo.dto.auth.RegisterRequest;
 import com.chatkeluhan.demo.entity.Customer;
+import com.chatkeluhan.demo.entity.Role;
 import com.chatkeluhan.demo.repository.CustomerRepository;
 import com.chatkeluhan.demo.security.JwtUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,6 +40,16 @@ public class AuthService {
         // Enkripsi password menggunakan BCryptPasswordEncoder
         customer.setPassword(passwordEncoder.encode(request.getPassword()));
 
+        if (request.getRole() != null && !request.getRole().trim().isEmpty()) {
+            try {
+                customer.setRole(Role.valueOf(request.getRole().trim().toUpperCase()));
+            } catch (IllegalArgumentException e) {
+                customer.setRole(Role.USER);
+            }
+        } else {
+            customer.setRole(Role.USER);
+        }
+
         customerRepository.save(customer);
 
         return new AuthResponse(null, "Registrasi berhasil");
@@ -59,9 +70,12 @@ public class AuthService {
             throw new RuntimeException("Email atau password salah");
         }
 
-        // Generate JWT token (gunakan email sebagai subject/username di token)
-        String token = jwtUtils.generateToken(customer.getEmail());
+        // Generate JWT token (gunakan email sebagai subject/username di token) beserta role
+        String roleName = customer.getRole() != null ? customer.getRole().name() : Role.USER.name();
+        String token = jwtUtils.generateToken(customer.getEmail(), roleName);
 
-        return new AuthResponse(token, "Login berhasil");
+        AuthResponse response = new AuthResponse(token, "Login berhasil");
+        response.setRole(roleName);
+        return response;
     }
 }

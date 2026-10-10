@@ -5,6 +5,7 @@ import com.chatkeluhan.demo.dto.RegisterRequest;
 import com.chatkeluhan.demo.dto.ForgotPasswordRequest;
 import com.chatkeluhan.demo.dto.VerifyOtpRequest;
 import com.chatkeluhan.demo.dto.NewPasswordRequest;
+import com.chatkeluhan.demo.entity.Role;
 import com.chatkeluhan.demo.entity.UserEntity;
 import com.chatkeluhan.demo.repository.UserRepository;
 import com.chatkeluhan.demo.security.JwtUtils;
@@ -44,6 +45,15 @@ public class AuthController {
         user.setName(request.getName());
         user.setEmail(request.getEmail());
         user.setPassword(request.getPassword());
+        if (request.getRole() != null && !request.getRole().trim().isEmpty()) {
+            try {
+                user.setRole(Role.valueOf(request.getRole().trim().toUpperCase()));
+            } catch (IllegalArgumentException e) {
+                user.setRole(Role.USER);
+            }
+        } else {
+            user.setRole(Role.USER);
+        }
         userRepository.save(user);
 
         Map<String, String> response = new HashMap<>();
@@ -56,11 +66,14 @@ public class AuthController {
         java.util.Optional<UserEntity> userOpt = userRepository.findByEmail(request.getEmail());
 
         if (userOpt.isPresent() && userOpt.get().getPassword().equals(request.getPassword())) {
+            UserEntity user = userOpt.get();
+            String roleName = user.getRole() != null ? user.getRole().name() : Role.USER.name();
             Map<String, String> response = new HashMap<>();
-            String realToken = jwtUtils.generateToken(userOpt.get().getEmail());
+            String realToken = jwtUtils.generateToken(user.getEmail(), roleName);
             response.put("token", realToken);
             response.put("message", "Login successful");
-            response.put("name", userOpt.get().getName());
+            response.put("name", user.getName());
+            response.put("role", roleName);
 
             return ResponseEntity.ok(response);
         } else {

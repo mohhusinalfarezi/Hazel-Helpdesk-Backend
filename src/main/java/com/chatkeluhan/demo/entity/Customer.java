@@ -2,6 +2,8 @@ package com.chatkeluhan.demo.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.PrePersist;
@@ -27,6 +29,10 @@ public class Customer {
     @Column(name = "password", length = 255)
     private String password;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", length = 20)
+    private Role role = Role.USER;
+
     // --- Konstruktor Kosong (Wajib untuk JPA) ---
     public Customer() {
     }
@@ -38,6 +44,17 @@ public class Customer {
             // Menghasilkan ID unik otomatis seperti "CUST-A1B2C3D4"
             this.customerId = "CUST-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         }
+        if (this.role == null) {
+            this.role = Role.USER;
+        }
+    }
+
+    public Role getRole() {
+        return role != null ? role : Role.USER;
+    }
+
+    public void setRole(Role role) {
+        this.role = role != null ? role : Role.USER;
     }
 
     // --- Getter dan Setter ---

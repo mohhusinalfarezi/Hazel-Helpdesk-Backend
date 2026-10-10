@@ -17,6 +17,25 @@ public class UserEntity {
 
     private String password;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role")
+    private Role role = Role.USER;
+
+    @PrePersist
+    protected void onCreate() {
+        if (this.role == null) {
+            this.role = Role.USER;
+        }
+    }
+
+    public Role getRole() {
+        return role != null ? role : Role.USER;
+    }
+
+    public void setRole(Role role) {
+        this.role = role != null ? role : Role.USER;
+    }
+
     public Long getId() {
         return id;
     }

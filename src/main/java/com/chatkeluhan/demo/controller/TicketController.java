@@ -12,6 +12,7 @@ import java.util.Map;
 import com.chatkeluhan.demo.dto.ticket.TicketRequest;
 import com.chatkeluhan.demo.dto.ticket.TicketResponse;
 import com.chatkeluhan.demo.dto.ticket.TicketStatusUpdateRequest;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 @RestController
@@ -74,7 +75,7 @@ public class TicketController {
 
     // POST: Membuat tiket baru (JWT Authenticated)
     @PostMapping
-    public ResponseEntity<TicketResponse> createTicketApi(
+    public ResponseEntity<?> createTicketApi(
             @RequestBody TicketRequest request,
             Authentication authentication) {
         
@@ -83,7 +84,8 @@ public class TicketController {
             TicketResponse response = ticketService.createTicketApi(userEmail, request);
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().build();
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
@@ -101,6 +103,7 @@ public class TicketController {
     }
 
     // PATCH: Mengupdate status tiket
+    @PreAuthorize("hasAnyRole('TECHNICIAN', 'ADMIN')")
     @PatchMapping("/{ticketId}/status")
     public ResponseEntity<TicketResponse> updateTicketStatusApi(
             @PathVariable String ticketId,

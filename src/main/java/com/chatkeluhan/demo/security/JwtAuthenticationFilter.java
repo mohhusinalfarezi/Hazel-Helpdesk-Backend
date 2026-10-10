@@ -6,12 +6,16 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -41,10 +45,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             
             // Validasi token (apakah valid dan belum expired)
             if (jwtUtils.validateToken(jwt)) {
-                
-                // Set otentikasi. Anda bisa menambahkan UserDetails jika diperlukan nanti.
+                String role = jwtUtils.extractRole(jwt);
+                List<GrantedAuthority> authorities = new ArrayList<>();
+                if (role != null && !role.isBlank()) {
+                    String authorityName = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+                    authorities.add(new SimpleGrantedAuthority(authorityName));
+                } else {
+                    authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
+                }
+
+                // Set otentikasi dengan authorities dari claim role
                 UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
-                        username, null, null); 
+                        username, null, authorities); 
                 
                 authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authenticationToken);
