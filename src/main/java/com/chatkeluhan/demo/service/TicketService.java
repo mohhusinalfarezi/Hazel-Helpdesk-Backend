@@ -200,6 +200,15 @@ public class TicketService {
         history.setChangeTimestamp(LocalDateTime.now());
         historyRepository.save(history);
 
+        // Kirim notifikasi in-app: tiket berhasil dibuat
+        notificationService.createNotification(
+                customer.getEmail(),
+                "Tiket Berhasil Dibuat",
+                "Tiket keluhan Anda berhasil dikirim dan sedang dalam antrean tim teknis.",
+                "TICKET_CREATED",
+                savedTicket.getTicketId()
+        );
+
         return mapToResponse(savedTicket);
     }
 
@@ -230,6 +239,15 @@ public class TicketService {
         history.setNewStatus(newStatus);
         history.setChangeTimestamp(LocalDateTime.now());
         historyRepository.save(history);
+
+        // Kirim notifikasi in-app: status tiket diperbarui
+        notificationService.createNotification(
+                updatedTicket.getCustomer().getEmail(),
+                "Update Status Tiket",
+                "Status tiket #" + updatedTicket.getTicketId() + " Anda telah diubah menjadi " + newStatus,
+                "TICKET_UPDATE",
+                updatedTicket.getTicketId()
+        );
 
         return mapToResponse(updatedTicket);
     }

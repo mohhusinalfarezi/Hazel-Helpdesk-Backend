@@ -1,5 +1,6 @@
 package com.chatkeluhan.demo.controller;
 
+import com.chatkeluhan.demo.dto.ChatResponseDto;
 import com.chatkeluhan.demo.service.GeminiService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -8,22 +9,20 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/chat")
-@CrossOrigin(origins = "*") // Sangat krusial: Membuka gerbang agar aplikasi Flutter (emulator/HP fisik)
-                            // diizinkan mengakses API ini
+@CrossOrigin(origins = "*") // Membuka gerbang agar aplikasi klien (Flutter/Web) diizinkan mengakses API ini
 public class ChatController {
 
     private final GeminiService geminiService;
     private final com.chatkeluhan.demo.repository.TicketRepository ticketRepository;
 
-    // Dependency Injection
     public ChatController(GeminiService geminiService, com.chatkeluhan.demo.repository.TicketRepository ticketRepository) {
         this.geminiService = geminiService;
         this.ticketRepository = ticketRepository;
     }
 
     @PostMapping
-    public ResponseEntity<Map<String, String>> chatWithHazel(@RequestBody Map<String, String> request) {
-        // 1. Menangkap pesan dari Flutter
+    public ResponseEntity<?> chatWithHazel(@RequestBody Map<String, String> request) {
+        // 1. Menangkap pesan dari request
         String userMessage = request.get("message");
         String ticketId = request.get("ticketId");
 
@@ -38,12 +37,11 @@ public class ChatController {
                 ticket = ticketRepository.findById(ticketId).orElse(null);
             }
 
-            // 2. Menyerahkan pesan ke Hazel (GeminiService) beserta konteks tiket jika ada
-            String aiResponse = geminiService.getAiResponse(userMessage, ticket);
+            // 2. Menyerahkan pesan ke Hazel AI dan mengekstrak respons serta metadata eskalasi
+            ChatResponseDto responseDto = geminiService.getAiChatResponse(userMessage, ticket);
 
-            // 3. Mengemas balasan Hazel menjadi format JSON untuk Flutter (key "reply"
-            // harus cocok dengan Flutter)
-            return ResponseEntity.ok(Map.of("reply", aiResponse));
+            // 3. Mengembalikan response terstruktur: reply, shouldEscalate, suggestedCategory, suggestedSummary
+            return ResponseEntity.ok(responseDto);
 
         } catch (Exception e) {
             System.err.println("[CONTROLLER ERROR] Terjadi kesalahan saat memanggil Gemini: " + e.getMessage());

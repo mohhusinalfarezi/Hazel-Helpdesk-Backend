@@ -1,5 +1,6 @@
 package com.chatkeluhan.demo.service;
 
+import com.chatkeluhan.demo.dto.ChatResponseDto;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,9 +12,13 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 public class GeminiService {
+
+    private static final Pattern ESCALATE_PATTERN = Pattern.compile("<<<ESCALATE:\\s*(\\{.*?\\})\\s*>>>", Pattern.DOTALL);
 
     @Value("${gemini.api.key}")
     private String apiKey;
@@ -36,6 +41,10 @@ public class GeminiService {
     }
 
     public String getAiResponse(String userMessage, com.chatkeluhan.demo.entity.Ticket ticket) {
+        return getAiChatResponse(userMessage, ticket).getReply();
+    }
+
+    public ChatResponseDto getAiChatResponse(String userMessage, com.chatkeluhan.demo.entity.Ticket ticket) {
         chatHistory.add(Map.of("role", "user", "parts", new Object[]{ Map.of("text", userMessage) }));
 
         int maxRetries = 3;
@@ -46,13 +55,24 @@ public class GeminiService {
                 String rawUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=" + apiKey;
                 URI uri = new URI(rawUrl);
 
-                String baseInstruction = "Kamu adalah Asisten AI Helpdesk dari sebuah perusahaan BUMN bernama Hazel. " +
-                        "Gaya bahasamu ramah, hangat, empati, dan tidak kaku. " +
-                        "Tugasmu ada DUA:\n" +
-                        "1. MEMBUAT TIKET: Jika pelanggan melapor masalah, tanyakan lokasi spesifik dan nomor HP. " +
-                        "JIKA lengkap, berikan penutup ramah, beritahu Nomor Tiket akan ditampilkan sistem di layar ini dan salinannya dikirim via WhatsApp. " +
-                        "LALU WAJIB tambahkan kode [TICKET_READY: {\"no_hp\":\"...\", \"lokasi\":\"...\", \"masalah\":\"...\"}] di baris paling bawah.\n\n" +
-                        "2. CEK STATUS: Jika pelanggan ingin mengecek status atau mem-follow-up laporan, tanyakan Nomor Tiketnya (misal: TKT-123). " +
+                String baseInstruction = "Kamu adalah Asisten AI Helpdesk dari sebuah perusahaan BUMN bernama Hazel.\n" +
+                        "Karakter dan Sikap:\n" +
+                        "- Bersikaplah ramah, hangat, penuh empati, solutif, dan tidak kaku.\n" +
+                        "- Berikan langkah perbaikan IT yang ringkas, jelas, dan mudah diikuti oleh pengguna.\n\n" +
+                        "Panduan Operasional:\n" +
+                        "1. DIAGNOSA & TROUBLESHOOTING:\n" +
+                        "   - Berikan solusi atau langkah perbaikan mandiri terlebih dahulu secara bertahap dan ringkas.\n" +
+                        "2. DETEKSI KEBUTUHAN ESKALASI TIKET:\n" +
+                        "   - Jika masalah pengguna terdeteksi tidak bisa diselesaikan secara mandiri,\n" +
+                        "   - ATAU pengguna menyatakan kendala masih berlanjut (misal: 'tetap tidak bisa', 'masih mati', 'sudah dicoba tapi gagal'),\n" +
+                        "   - ATAU masalah membutuhkan kehadiran/penanganan teknisi fisik langsung,\n" +
+                        "   MAKA: Tetap berikan jawaban yang menenangkan bahwa kendala mereka dipahami dan akan dieskalasikan ke tim teknisi.\n" +
+                        "   Sertakan tag khusus di akhir balasanmu dengan format persis:\n" +
+                        "   <<<ESCALATE:{\"needTicket\":true,\"category\":\"Network|Hardware|Software|General\",\"summary\":\"ringkasan kendala singkat\"}>>>\n" +
+                        "   (Pilih salah satu category yang paling relevan: Network, Hardware, Software, atau General. Pada summary, berikan ringkasan kendala singkat).\n" +
+                        "   - Jika masalah sudah selesai atau masih dalam tahap diagnosa/troubleshooting awal, JANGAN sertakan tag <<<ESCALATE:...>>> tersebut.\n\n" +
+                        "3. CEK STATUS TIKET:\n" +
+                        "   - Jika pelanggan ingin mengecek status atau mem-follow-up laporan, tanyakan Nomor Tiketnya (misal: TKT-123). " +
                         "Jika pelanggan sudah menyebutkan nomor tiket, berikan respons bahwa sistem sedang mengeceknya, " +
                         "LALU WAJIB tambahkan kode [TICKET_CHECK: {\"ticket_id\":\"...\"}] di baris paling bawah.";
 
@@ -84,7 +104,7 @@ public class GeminiService {
                 String aiReply = rootNode.path("candidates").get(0).path("content").path("parts").get(0).path("text").asText();
                 String displayReply = aiReply;
                 
-                // --- LOGIKA 1: INTERSEPSI PEMBUATAN TIKET ---
+                // --- LOGIKA 1: INTERSEPSI PEMBUATAN TIKET (LEGACY / CHATBOT BOT) ---
                 if (aiReply.contains("[TICKET_READY:")) {
                     try {
                         int startIndex = aiReply.indexOf("[TICKET_READY:");
@@ -145,8 +165,35 @@ public class GeminiService {
                         System.err.println("\n[SISTEM ERROR] Gagal mengekstrak data pengecekan tiket: " + ex.getMessage());
                     }
                 }
+
+                // --- LOGIKA 3: DETEKSI & EKSTRAKSI ESKALASI TIKET <<<ESCALATE:...>>> ---
+                boolean shouldEscalate = false;
+                String suggestedCategory = null;
+                String suggestedSummary = null;
+
+                Matcher matcher = ESCALATE_PATTERN.matcher(displayReply);
+                if (matcher.find()) {
+                    String escalateJson = matcher.group(1).trim();
+                    try {
+                        JsonNode escalateNode = objectMapper.readTree(escalateJson);
+                        shouldEscalate = escalateNode.path("needTicket").asBoolean(true);
+                        if (escalateNode.hasNonNull("category")) {
+                            suggestedCategory = escalateNode.path("category").asText();
+                        }
+                        if (escalateNode.hasNonNull("summary")) {
+                            suggestedSummary = escalateNode.path("summary").asText();
+                        }
+                    } catch (Exception ex) {
+                        System.err.println("[LOG AI] Gagal parse JSON eskalasi: " + ex.getMessage());
+                        shouldEscalate = true;
+                        suggestedCategory = "General";
+                    }
+
+                    // Bersihkan tag eskalasi dari teks balasan yang akan dibaca pengguna
+                    displayReply = matcher.replaceAll("").trim();
+                }
                 
-                // Simpan hanya teks AI yang sudah digabung (tanpa JSON rahasia) ke dalam memori
+                // Simpan hanya teks AI yang bersih ke dalam memori percakapan
                 chatHistory.add(Map.of("role", "model", "parts", new Object[]{ Map.of("text", displayReply) }));
                 
                 if (ticket != null && ticketMessageRepository != null) {
@@ -165,7 +212,7 @@ public class GeminiService {
                     ticketMessageRepository.save(aiMsgEntity);
                 }
 
-                return displayReply;
+                return new ChatResponseDto(displayReply, shouldEscalate, suggestedCategory, suggestedSummary);
 
             } catch (org.springframework.web.client.HttpStatusCodeException e) {
                 if (e.getStatusCode().value() == 503 && attempt < maxRetries) {
@@ -174,22 +221,21 @@ public class GeminiService {
                     backoffTime *= 2; 
                 } else if (e.getStatusCode().value() == 503) {
                     chatHistory.remove(chatHistory.size() - 1);
-                    return "Maaf, Hazel sedang sangat sibuk saat ini. Mohon coba lagi beberapa saat kemudian.";
+                    return new ChatResponseDto("Maaf, Hazel sedang sangat sibuk saat ini. Mohon coba lagi beberapa saat kemudian.", false, null, null);
                 } else if (e.getStatusCode().value() == 429) {
-                    // --- PENANGANAN ERROR 429 (QUOTA HABIS) DITAMBAHKAN DI SINI ---
                     chatHistory.remove(chatHistory.size() - 1);
-                    return "Maaf, sistem layanan AI kami sedang mencapai batas limit penggunaan (Error 429). Mohon tunggu beberapa saat sebelum mencoba kembali.";
+                    return new ChatResponseDto("Maaf, sistem layanan AI kami sedang mencapai batas limit penggunaan (Error 429). Mohon tunggu beberapa saat sebelum mencoba kembali.", false, null, null);
                 } else {
                     chatHistory.remove(chatHistory.size() - 1);
-                    return "Maaf, Hazel sedang mengalami gangguan koneksi HTTP: " + e.getMessage();
+                    return new ChatResponseDto("Maaf, Hazel sedang mengalami gangguan koneksi HTTP: " + e.getMessage(), false, null, null);
                 }
             } catch (Exception e) {
                 chatHistory.remove(chatHistory.size() - 1);
-                return "Maaf, Hazel sedang mengalami gangguan eksekusi: " + e.getMessage();
+                return new ChatResponseDto("Maaf, Hazel sedang mengalami gangguan eksekusi: " + e.getMessage(), false, null, null);
             }
         }
         
         chatHistory.remove(chatHistory.size() - 1);
-        return "Maaf, Hazel gagal merespons setelah beberapa kali percobaan.";
+        return new ChatResponseDto("Maaf, Hazel gagal merespons setelah beberapa kali percobaan.", false, null, null);
     }
 }
