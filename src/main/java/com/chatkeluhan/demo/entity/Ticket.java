@@ -40,6 +40,12 @@ public class Ticket {
     @Column(name = "report_date", nullable = false)
     private LocalDateTime reportDate;
 
+    @Column(name = "rating")
+    private Integer rating; // Nilai 1 sampai 5
+
+    @Column(name = "feedback", columnDefinition = "TEXT")
+    private String feedback; // Catatan ulasan pelanggan
+
     public Ticket() {}
 
     // --- Getter dan Setter ---
@@ -59,4 +65,17 @@ public class Ticket {
     public void setCurrentStatus(String currentStatus) { this.currentStatus = currentStatus; }
     public LocalDateTime getReportDate() { return reportDate; }
     public void setReportDate(LocalDateTime reportDate) { this.reportDate = reportDate; }
+    public Integer getRating() { return rating; }
+    public void setRating(Integer rating) { this.rating = rating; }
+    public String getFeedback() { return feedback; }
+    public void setFeedback(String feedback) { this.feedback = feedback; }
+
+    public String getId() { return ticketId; }
+
+    public String getTechnicianEmail() {
+        if (technician != null && technician.getTechnicianId() != null) {
+            return technician.getTechnicianId();
+        }
+        return null;
+    }
 }

@@ -7,10 +7,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
+import java.util.HashSet;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import com.chatkeluhan.demo.dto.ticket.TicketRequest;
 import com.chatkeluhan.demo.dto.ticket.TicketResponse;
+import com.chatkeluhan.demo.dto.ticket.FeedbackRequest;
 
 @Service
 public class TicketService {
@@ -21,22 +24,25 @@ public class TicketService {
     private final AssetRepository assetRepository;
     private final ProblemCategoryRepository categoryRepository;
 
-    // 1. TAMBAHAN BARU: Deklarasi NotificationService
+    // 1. TAMBAHAN BARU: Deklarasi NotificationService & UserRepository
     private final NotificationService notificationService;
+    private final UserRepository userRepository;
 
-    // 2. TAMBAHAN BARU: Injeksi NotificationService ke dalam Constructor
+    // 2. TAMBAHAN BARU: Injeksi NotificationService dan UserRepository ke dalam Constructor
     public TicketService(TicketRepository ticketRepository,
             CustomerRepository customerRepository,
             TicketHistoryRepository historyRepository,
             AssetRepository assetRepository,
             ProblemCategoryRepository categoryRepository,
-            NotificationService notificationService) {
+            NotificationService notificationService,
+            UserRepository userRepository) {
         this.ticketRepository = ticketRepository;
         this.customerRepository = customerRepository;
         this.historyRepository = historyRepository;
         this.assetRepository = assetRepository;
         this.categoryRepository = categoryRepository;
         this.notificationService = notificationService;
+        this.userRepository = userRepository;
     }
 
     @Transactional
@@ -256,6 +262,89 @@ public class TicketService {
         return ticketRepository.findAll();
     }
 
+    @Transactional
+    public TicketResponse submitFeedback(String ticketId, String userEmail, FeedbackRequest request) {
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new RuntimeException("Tiket tidak ditemukan dengan ID: " + ticketId));
+
+        // Validasi bahwa tiket berstatus "RESOLVED"
+        if (!"RESOLVED".equalsIgnoreCase(ticket.getCurrentStatus())) {
+            throw new RuntimeException("Feedback hanya dapat diberikan untuk tiket yang telah diselesaikan (RESOLVED).");
+        }
+
+        // Validasi bahwa user yang login adalah pemilik tiket tersebut
+        if (ticket.getCustomer() == null || ticket.getCustomer().getEmail() == null ||
+                !ticket.getCustomer().getEmail().equalsIgnoreCase(userEmail)) {
+            throw new RuntimeException("Anda tidak memiliki izin untuk memberikan feedback pada tiket ini.");
+        }
+
+        // Validasi rating jika diisi (1 sampai 5)
+        if (request.getRating() != null && (request.getRating() < 1 || request.getRating() > 5)) {
+            throw new RuntimeException("Rating harus bernilai antara 1 sampai 5.");
+        }
+
+        ticket.setRating(request.getRating());
+        ticket.setFeedback(request.getFeedback());
+
+        Ticket savedTicket = ticketRepository.save(ticket);
+
+        // --- Pemicu Notifikasi Ulasan Baru ---
+        try {
+            Set<String> recipientEmails = new HashSet<>();
+            // Jika tiket memiliki relasi teknisi yang menangani, kirim ke email tersebut
+            if (savedTicket.getTechnician() != null && savedTicket.getTechnician().getTechnicianId() != null) {
+                recipientEmails.add(savedTicket.getTechnician().getTechnicianId());
+            }
+
+            // Jika belum ada teknisi spesifik, cari email user ber-role TECHNICIAN atau ADMIN
+            if (recipientEmails.isEmpty()) {
+                if (userRepository != null) {
+                    List<UserEntity> technicians = userRepository.findByRole(Role.TECHNICIAN);
+                    for (UserEntity tech : technicians) {
+                        if (tech.getEmail() != null && !tech.getEmail().isBlank()) {
+                            recipientEmails.add(tech.getEmail());
+                        }
+                    }
+                    List<UserEntity> admins = userRepository.findByRole(Role.ADMIN);
+                    for (UserEntity admin : admins) {
+                        if (admin.getEmail() != null && !admin.getEmail().isBlank()) {
+                            recipientEmails.add(admin.getEmail());
+                        }
+                    }
+                }
+            }
+
+            if (recipientEmails.isEmpty()) {
+                recipientEmails.add("admin@helpdesk.com");
+            }
+
+            String idStr = savedTicket.getId() != null ? savedTicket.getId() : String.valueOf(ticketId);
+            String notifTitle = "Ulasan Baru Diterima";
+            String notifMessage = "Tiket #" + idStr + " mendapatkan ulasan " + (request.getRating() != null ? request.getRating() : "-") + " bintang dari pelanggan.";
+            String notifType = "FEEDBACK_SUBMITTED";
+            String relatedId = String.valueOf(ticketId);
+
+            for (String recipient : recipientEmails) {
+                notificationService.createNotification(
+                        recipient,
+                        notifTitle,
+                        notifMessage,
+                        notifType,
+                        relatedId
+                );
+            }
+        } catch (Exception e) {
+            System.err.println("[NOTIFICATION ERROR] Gagal mengirim notifikasi feedback: " + e.getMessage());
+        }
+
+        return mapToResponse(savedTicket);
+    }
+
+    @Transactional
+    public TicketResponse submitFeedback(Long ticketId, String userEmail, FeedbackRequest request) {
+        return submitFeedback(String.valueOf(ticketId), userEmail, request);
+    }
+
     private TicketResponse mapToResponse(Ticket ticket) {
         TicketResponse response = new TicketResponse();
         response.setTicketId(ticket.getTicketId());
@@ -265,6 +354,8 @@ public class TicketService {
         response.setDescription(ticket.getDescription());
         response.setCurrentStatus(ticket.getCurrentStatus());
         response.setReportDate(ticket.getReportDate());
+        response.setRating(ticket.getRating());
+        response.setFeedback(ticket.getFeedback());
         return response;
     }
 }

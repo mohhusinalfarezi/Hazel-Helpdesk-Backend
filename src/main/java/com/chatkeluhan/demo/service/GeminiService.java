@@ -200,15 +200,19 @@ public class GeminiService {
                     com.chatkeluhan.demo.entity.TicketMessage userMsgEntity = new com.chatkeluhan.demo.entity.TicketMessage();
                     userMsgEntity.setTicket(ticket);
                     userMsgEntity.setSender("USER");
-                    userMsgEntity.setMessageText(userMessage);
-                    userMsgEntity.setSentAt(java.time.LocalDateTime.now());
+                    userMsgEntity.setSenderRole("USER");
+                    userMsgEntity.setSenderEmail("user@system.local");
+                    userMsgEntity.setSenderName("User");
+                    userMsgEntity.setMessage(userMessage);
                     ticketMessageRepository.save(userMsgEntity);
 
                     com.chatkeluhan.demo.entity.TicketMessage aiMsgEntity = new com.chatkeluhan.demo.entity.TicketMessage();
                     aiMsgEntity.setTicket(ticket);
                     aiMsgEntity.setSender("AI");
-                    aiMsgEntity.setMessageText(displayReply);
-                    aiMsgEntity.setSentAt(java.time.LocalDateTime.now());
+                    aiMsgEntity.setSenderRole("AI");
+                    aiMsgEntity.setSenderEmail("hazel@helpdesk.ai");
+                    aiMsgEntity.setSenderName("Hazel AI");
+                    aiMsgEntity.setMessage(displayReply);
                     ticketMessageRepository.save(aiMsgEntity);
                 }
 

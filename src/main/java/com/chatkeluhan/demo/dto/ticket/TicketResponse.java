@@ -66,4 +66,23 @@ public class TicketResponse {
     public void setReportDate(LocalDateTime reportDate) {
         this.reportDate = reportDate;
     }
+
+    private Integer rating;
+    private String feedback;
+
+    public Integer getRating() {
+        return rating;
+    }
+
+    public void setRating(Integer rating) {
+        this.rating = rating;
+    }
+
+    public String getFeedback() {
+        return feedback;
+    }
+
+    public void setFeedback(String feedback) {
+        this.feedback = feedback;
+    }
 }

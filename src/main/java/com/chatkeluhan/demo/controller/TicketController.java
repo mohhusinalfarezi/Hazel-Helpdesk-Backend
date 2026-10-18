@@ -12,6 +12,7 @@ import java.util.Map;
 import com.chatkeluhan.demo.dto.ticket.TicketRequest;
 import com.chatkeluhan.demo.dto.ticket.TicketResponse;
 import com.chatkeluhan.demo.dto.ticket.TicketStatusUpdateRequest;
+import com.chatkeluhan.demo.dto.ticket.FeedbackRequest;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -117,9 +118,25 @@ public class TicketController {
         }
     }
 
-    // GET: Mengambil semua tiket untuk dashboard Flutter
-    @GetMapping("/all")
+    // GET: Mengambil semua tiket untuk dashboard Flutter (mendukung /api/tickets dan /api/tickets/all)
+    @GetMapping({"", "/all"})
     public ResponseEntity<List<Ticket>> getAllTickets() {
         return ResponseEntity.ok(ticketService.getAllTickets());
+    }
+
+    // POST: Memberikan feedback dan rating pada tiket yang telah diselesaikan (RESOLVED)
+    @PostMapping("/{ticketId}/feedback")
+    public ResponseEntity<?> submitFeedback(
+            @PathVariable String ticketId,
+            @RequestBody FeedbackRequest request,
+            Authentication authentication) {
+        
+        String userEmail = authentication.getName();
+        try {
+            ticketService.submitFeedback(ticketId, userEmail, request);
+            return ResponseEntity.ok("Feedback berhasil dikirim");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 }

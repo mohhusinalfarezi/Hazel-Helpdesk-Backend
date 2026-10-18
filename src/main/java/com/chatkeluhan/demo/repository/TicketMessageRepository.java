@@ -7,6 +7,6 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface TicketMessageRepository extends JpaRepository<TicketMessage, Integer> {
-    List<TicketMessage> findByTicket_TicketIdOrderBySentAtAsc(String ticketId);
+public interface TicketMessageRepository extends JpaRepository<TicketMessage, Long> {
+    List<TicketMessage> findByTicket_TicketIdOrderByCreatedAtAsc(String ticketId);
 }
