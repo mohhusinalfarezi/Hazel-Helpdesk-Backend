@@ -85,4 +85,14 @@ public class TicketResponse {
     public void setFeedback(String feedback) {
         this.feedback = feedback;
     }
+
+    private String technicianName;
+
+    public String getTechnicianName() {
+        return technicianName;
+    }
+
+    public void setTechnicianName(String technicianName) {
+        this.technicianName = technicianName;
+    }
 }

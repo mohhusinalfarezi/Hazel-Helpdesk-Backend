@@ -31,6 +31,9 @@ public class Ticket {
     @JoinColumn(name = "technician_id")
     private Technician technician;
 
+    @Column(name = "technician_name")
+    private String technicianName;
+
     @Column(name = "description", columnDefinition = "TEXT", nullable = false)
     private String description;
 
@@ -59,6 +62,16 @@ public class Ticket {
     public void setCategory(ProblemCategory category) { this.category = category; }
     public Technician getTechnician() { return technician; }
     public void setTechnician(Technician technician) { this.technician = technician; }
+    public String getTechnicianName() {
+        if (technicianName != null && !technicianName.isBlank()) {
+            return technicianName;
+        }
+        if (technician != null && technician.getTechnicianName() != null) {
+            return technician.getTechnicianName();
+        }
+        return null;
+    }
+    public void setTechnicianName(String technicianName) { this.technicianName = technicianName; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
     public String getCurrentStatus() { return currentStatus; }

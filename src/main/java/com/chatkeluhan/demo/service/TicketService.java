@@ -236,6 +236,25 @@ public class TicketService {
 
         String oldStatus = ticket.getCurrentStatus();
         ticket.setCurrentStatus(newStatus);
+
+        // Saat teknisi mengubah status menjadi IN_PROGRESS atau RESOLVED:
+        // Pastikan nama teknisi yang sedang login disimpan ke field technicianName
+        if ("IN_PROGRESS".equalsIgnoreCase(newStatus) || "RESOLVED".equalsIgnoreCase(newStatus)) {
+            try {
+                org.springframework.security.core.Authentication authentication =
+                        org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                if (authentication != null && authentication.getName() != null && !authentication.getName().equalsIgnoreCase("anonymousUser")) {
+                    String principal = authentication.getName();
+                    String techName = userRepository.findByEmail(principal)
+                            .map(UserEntity::getName)
+                            .orElse(principal);
+                    ticket.setTechnicianName(techName);
+                }
+            } catch (Exception e) {
+                System.err.println("[WARN] Gagal mendapatkan teknisi dari SecurityContext: " + e.getMessage());
+            }
+        }
+
         Ticket updatedTicket = ticketRepository.save(ticket);
 
         // Simpan history
@@ -345,6 +364,13 @@ public class TicketService {
         return submitFeedback(String.valueOf(ticketId), userEmail, request);
     }
 
+    @Transactional(readOnly = true)
+    public TicketResponse getTicketDetail(String ticketId) {
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new RuntimeException("Tiket tidak ditemukan dengan ID: " + ticketId));
+        return mapToResponse(ticket);
+    }
+
     private TicketResponse mapToResponse(Ticket ticket) {
         TicketResponse response = new TicketResponse();
         response.setTicketId(ticket.getTicketId());
@@ -356,6 +382,7 @@ public class TicketService {
         response.setReportDate(ticket.getReportDate());
         response.setRating(ticket.getRating());
         response.setFeedback(ticket.getFeedback());
+        response.setTechnicianName(ticket.getTechnicianName());
         return response;
     }
 }

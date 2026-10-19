@@ -124,6 +124,17 @@ public class TicketController {
         return ResponseEntity.ok(ticketService.getAllTickets());
     }
 
+    // GET: Mengambil detail tiket berdasarkan ID
+    @GetMapping("/{ticketId}")
+    public ResponseEntity<TicketResponse> getTicketById(@PathVariable String ticketId) {
+        try {
+            TicketResponse response = ticketService.getTicketDetail(ticketId);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     // POST: Memberikan feedback dan rating pada tiket yang telah diselesaikan (RESOLVED)
     @PostMapping("/{ticketId}/feedback")
     public ResponseEntity<?> submitFeedback(
