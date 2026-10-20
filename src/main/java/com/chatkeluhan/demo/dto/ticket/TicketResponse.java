@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 public class TicketResponse {
     private String ticketId;
     private String customerName;
+    private String assetId;
     private String assetName;
     private String categoryName;
     private String description;
@@ -25,6 +26,14 @@ public class TicketResponse {
 
     public void setCustomerName(String customerName) {
         this.customerName = customerName;
+    }
+
+    public String getAssetId() {
+        return assetId;
+    }
+
+    public void setAssetId(String assetId) {
+        this.assetId = assetId;
     }
 
     public String getAssetName() {

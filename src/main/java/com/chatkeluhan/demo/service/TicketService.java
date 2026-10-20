@@ -152,18 +152,16 @@ public class TicketService {
         Customer customer = customerRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Customer tidak ditemukan"));
 
-        Asset asset = null;
-        if (request.getAssetId() != null && !request.getAssetId().isBlank()) {
-            asset = assetRepository.findById(request.getAssetId()).orElse(null);
-        }
-        if (asset == null) {
-            asset = assetRepository.findAll().stream().findFirst().orElseGet(() -> {
+        String assetId = request.getAssetId();
+        if (assetId == null || assetId.isBlank()) {
+            Asset defaultAsset = assetRepository.findAll().stream().findFirst().orElseGet(() -> {
                 Asset newAsset = new Asset();
                 newAsset.setAssetId("AST-" + System.currentTimeMillis());
                 newAsset.setAssetName("General Asset");
                 newAsset.setLocationCoordinate("Head Office");
                 return assetRepository.save(newAsset);
             });
+            assetId = defaultAsset.getAssetId();
         }
 
         ProblemCategory category = null;
@@ -190,7 +188,7 @@ public class TicketService {
         ticket.setTicketId(generatedId);
 
         ticket.setCustomer(customer);
-        ticket.setAsset(asset);
+        ticket.setAssetId(assetId);
         ticket.setCategory(category);
         ticket.setDescription(request.getDescription());
         ticket.setCurrentStatus("OPEN");
@@ -375,7 +373,14 @@ public class TicketService {
         TicketResponse response = new TicketResponse();
         response.setTicketId(ticket.getTicketId());
         response.setCustomerName(ticket.getCustomer() != null ? ticket.getCustomer().getFullName() : null);
-        response.setAssetName(ticket.getAsset() != null ? ticket.getAsset().getAssetName() : null);
+        response.setAssetId(ticket.getAssetId());
+        String assetName = null;
+        if (ticket.getAssetId() != null && !ticket.getAssetId().isBlank()) {
+            assetName = assetRepository.findByAssetTagIgnoreCase(ticket.getAssetId())
+                    .map(Asset::getName)
+                    .orElse(ticket.getAssetId());
+        }
+        response.setAssetName(assetName);
         response.setCategoryName(ticket.getCategory() != null ? ticket.getCategory().getCategoryName() : null);
         response.setDescription(ticket.getDescription());
         response.setCurrentStatus(ticket.getCurrentStatus());

@@ -16,10 +16,8 @@ public class Ticket {
     @JoinColumn(name = "customer_id", nullable = false)
     private Customer customer;
 
-    // Relasi Foreign Key ke entitas Asset
-    @ManyToOne
-    @JoinColumn(name = "asset_id", nullable = false)
-    private Asset asset;
+    @Column(name = "asset_id")
+    private String assetId;
 
     // Relasi Foreign Key ke entitas ProblemCategory
     @ManyToOne
@@ -56,8 +54,9 @@ public class Ticket {
     public void setTicketId(String ticketId) { this.ticketId = ticketId; }
     public Customer getCustomer() { return customer; }
     public void setCustomer(Customer customer) { this.customer = customer; }
-    public Asset getAsset() { return asset; }
-    public void setAsset(Asset asset) { this.asset = asset; }
+    public String getAssetId() { return assetId; }
+    public void setAssetId(String assetId) { this.assetId = assetId; }
+    public void setAsset(Asset asset) { this.assetId = (asset != null) ? asset.getAssetId() : null; }
     public ProblemCategory getCategory() { return category; }
     public void setCategory(ProblemCategory category) { this.category = category; }
     public Technician getTechnician() { return technician; }
